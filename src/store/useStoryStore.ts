@@ -165,6 +165,10 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set(produce((state: StoryState) => {
       const graph = state.project.graphs[graphId];
       if (!graph) return;
+      // Enforce single start node per graph
+      if (type === 'start' && graph.nodes.some(n => n.type === 'start')) {
+        return; // Already has a start node
+      }
       const node: StoryNode = {
         id: nodeId,
         type,

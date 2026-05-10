@@ -1,8 +1,8 @@
 /**
  * StoryMapper — Story Canvas
  * 
- * React Flow canvas wrapper with custom node types,
- * breadcrumb navigation, toolbar, and dark theme.
+ * React Flow canvas wrapper. Nodes only show headings on canvas.
+ * Double-click a node to open the Script Panel for editing.
  */
 
 import { useCallback, useMemo, useRef } from 'react';
@@ -15,8 +15,6 @@ import {
   type Connection,
   type Edge,
   type Node,
-  addEdge as rfAddEdge,
-  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -27,7 +25,6 @@ import { SubStoryNode } from '../nodes/SubStoryNode';
 import { StartNode, EndNode } from '../nodes/StartEndNode';
 import type { NodeType } from '../../types/story';
 
-// Register custom node types
 const nodeTypes = {
   'script-editor': ScriptEditorNode,
   'sub-story': SubStoryNode,
@@ -49,13 +46,17 @@ export function StoryCanvas() {
   const collapseToSubStory = useStoryStore((s) => s.collapseToSubStory);
   const selectedNodeIds = useStoryStore((s) => s.selectedNodeIds);
 
-  const setValidation = useUIStore((s) => s.setValidation);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const graph = project.graphs[activeGraphId];
   if (!graph) return <div>No graph loaded</div>;
 
-  // Convert StoryNodes to React Flow nodes
+  // Check if a start node already exists
+  const hasStartNode = useMemo(() =>
+    graph.nodes.some(n => n.type === 'start'),
+    [graph.nodes]
+  );
+
   const rfNodes: Node[] = useMemo(() =>
     graph.nodes.map((n) => ({
       id: n.id,
@@ -68,7 +69,6 @@ export function StoryCanvas() {
     [graph.nodes]
   );
 
-  // Convert StoryEdges to React Flow edges
   const rfEdges: Edge[] = useMemo(() =>
     graph.edges.map((e) => ({
       id: e.id,
@@ -84,7 +84,6 @@ export function StoryCanvas() {
 
   const handleNodesChange = useCallback((changes: any[]) => {
     onNodesChange(activeGraphId, changes);
-    // Track selection
     const selectChanges = changes.filter((c: any) => c.type === 'select');
     if (selectChanges.length > 0) {
       const currentNodes = graph.nodes;
@@ -114,11 +113,10 @@ export function StoryCanvas() {
     addEdge(activeGraphId, edge);
   }, [activeGraphId, addEdge]);
 
-  // Double-click canvas to add a node
+  // Double-click canvas = add new scene node
   const handlePaneDoubleClick = useCallback((event: React.MouseEvent) => {
     const bounds = reactFlowWrapper.current?.getBoundingClientRect();
     if (!bounds) return;
-    // Use a simple position calculation
     const position = {
       x: event.clientX - bounds.left,
       y: event.clientY - bounds.top,
@@ -126,7 +124,6 @@ export function StoryCanvas() {
     addNode(activeGraphId, 'script-editor', position);
   }, [activeGraphId, addNode]);
 
-  // Breadcrumb items
   const breadcrumbs = useMemo(() =>
     graphStack.map((gId) => ({
       id: gId,
@@ -135,14 +132,12 @@ export function StoryCanvas() {
     [graphStack, project.graphs]
   );
 
-  // Group selected nodes into sub-story
   const handleGroupSelected = useCallback(() => {
     if (selectedNodeIds.length >= 2) {
       collapseToSubStory(activeGraphId, selectedNodeIds);
     }
   }, [activeGraphId, selectedNodeIds, collapseToSubStory]);
 
-  // Add node from toolbar
   const handleAddFromToolbar = useCallback((type: NodeType) => {
     addNode(activeGraphId, type, { x: 300 + Math.random() * 100, y: 200 + Math.random() * 100 });
   }, [activeGraphId, addNode]);
@@ -175,18 +170,20 @@ export function StoryCanvas() {
 
       {/* Toolbar */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '6px 16px',
-        background: 'var(--bg-surface)',
-        borderBottom: '1px solid var(--node-border)',
-        flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: '8px',
+        padding: '6px 16px', background: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--node-border)', flexShrink: 0,
       }}>
         <button className="btn btn--ghost" onClick={() => handleAddFromToolbar('script-editor')} title="Add Scene Node">
           🎬 Scene
         </button>
-        <button className="btn btn--ghost" onClick={() => handleAddFromToolbar('start')} title="Add Start Node">
+        <button
+          className="btn btn--ghost"
+          onClick={() => handleAddFromToolbar('start')}
+          title={hasStartNode ? 'Only one Start node allowed' : 'Add Start Node'}
+          disabled={hasStartNode}
+          style={{ opacity: hasStartNode ? 0.35 : 1 }}
+        >
           ▶ Start
         </button>
         <button className="btn btn--ghost" onClick={() => handleAddFromToolbar('end')} title="Add End Node">
@@ -197,14 +194,14 @@ export function StoryCanvas() {
           className="btn btn--ghost"
           onClick={handleGroupSelected}
           disabled={selectedNodeIds.length < 2}
-          style={{ opacity: selectedNodeIds.length < 2 ? 0.4 : 1 }}
+          style={{ opacity: selectedNodeIds.length < 2 ? 0.35 : 1 }}
           title="Group selected nodes into a Sub-Story"
         >
           📦 Group ({selectedNodeIds.length})
         </button>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-dim)' }}>
-          Double-click canvas to add scene
+          Double-click canvas to add scene · Double-click node to edit
         </span>
       </div>
 
@@ -231,16 +228,8 @@ export function StoryCanvas() {
           deleteKeyCode="Delete"
           proOptions={{ hideAttribution: true }}
         >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="var(--text-dim)"
-          />
-          <Controls
-            showInteractive={false}
-            position="bottom-left"
-          />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--text-dim)" />
+          <Controls showInteractive={false} position="bottom-left" />
           <MiniMap
             position="bottom-right"
             nodeStrokeWidth={3}

@@ -12,7 +12,7 @@ import Color from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
 import Highlight from '@tiptap/extension-highlight';
 import Placeholder from '@tiptap/extension-placeholder';
-import Underline from '@tiptap/extension-underline';
+
 import { memo, useCallback, useRef } from 'react';
 import type { JSONContent } from '@tiptap/react';
 
@@ -48,7 +48,6 @@ export const RichTextEditor = memo(function RichTextEditor({
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Highlight.configure({ multicolor: true }),
       Placeholder.configure({ placeholder }),
-      Underline,
     ],
     content,
     editable,
