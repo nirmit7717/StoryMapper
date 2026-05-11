@@ -130,6 +130,17 @@ export function StoryCanvas() {
 
   const handleConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return;
+
+    // Enforce single outgoing connection for non-branch nodes
+    const sourceNode = graph.nodes.find(n => n.id === connection.source);
+    if (sourceNode && sourceNode.type !== 'branch') {
+      const handleId = connection.sourceHandle || 'out';
+      const alreadyConnected = graph.edges.some(
+        e => e.source === connection.source && e.sourceHandle === handleId
+      );
+      if (alreadyConnected) return; // Block — already has a connection from this handle
+    }
+
     const edge = {
       id: `e-${connection.source}-${connection.target}-${Date.now()}`,
       source: connection.source,
@@ -140,7 +151,7 @@ export function StoryCanvas() {
     addEdge(activeGraphId, edge);
     // Clear the ref since connection was successful
     connectingFrom.current = null;
-  }, [activeGraphId, addEdge]);
+  }, [activeGraphId, addEdge, graph.nodes, graph.edges]);
 
   // ── Capture source info when connection starts ──
   const handleConnectStart = useCallback((_event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
@@ -197,6 +208,18 @@ export function StoryCanvas() {
   const handleDropMenuSelect = useCallback((type: string) => {
     if (!dropMenu) return;
 
+    // Enforce single outgoing connection for non-branch nodes
+    const sourceNode = graph.nodes.find(n => n.id === dropMenu.sourceNodeId);
+    if (sourceNode && sourceNode.type !== 'branch') {
+      const alreadyConnected = graph.edges.some(
+        e => e.source === dropMenu.sourceNodeId && e.sourceHandle === dropMenu.sourceHandleId
+      );
+      if (alreadyConnected) {
+        setDropMenu(null);
+        return;
+      }
+    }
+
     // Create the new node at the drop position
     const newNodeId = addNode(activeGraphId, type as NodeType, {
       x: dropMenu.flowX,
@@ -214,7 +237,7 @@ export function StoryCanvas() {
     addEdge(activeGraphId, edge);
 
     setDropMenu(null);
-  }, [dropMenu, activeGraphId, addNode, addEdge]);
+  }, [dropMenu, activeGraphId, addNode, addEdge, graph.nodes, graph.edges]);
 
   // ── Edge click → open edge panel ──
   const handleEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
@@ -310,7 +333,7 @@ export function StoryCanvas() {
         </button>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-dim)' }}>
-          Drag connector to empty space to create & connect · Click edge to edit
+          Drag to select · Middle-click to pan · Double-click to add scene
         </span>
       </div>
 
@@ -338,6 +361,9 @@ export function StoryCanvas() {
           }}
           minZoom={0.1}
           maxZoom={3}
+          selectionOnDrag
+          panOnDrag={[1, 2]}
+          selectionKeyCode={null}
           multiSelectionKeyCode="Shift"
           deleteKeyCode="Delete"
           proOptions={{ hideAttribution: true }}

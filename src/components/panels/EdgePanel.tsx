@@ -17,6 +17,7 @@ export function EdgePanel() {
   const activeGraphId = useStoryStore((s) => s.activeGraphId);
   const project = useStoryStore((s) => s.project);
   const updateEdgeData = useStoryStore((s) => s.updateEdgeData);
+  const removeEdge = useStoryStore((s) => s.removeEdge);
 
   const graph = project.graphs[activeGraphId];
 
@@ -45,6 +46,12 @@ export function EdgePanel() {
     if (!editingEdgeId) return;
     updateEdgeData(activeGraphId, editingEdgeId, { label });
   }, [activeGraphId, editingEdgeId, updateEdgeData]);
+
+  const handleBreakConnection = useCallback(() => {
+    if (!editingEdgeId) return;
+    removeEdge(activeGraphId, editingEdgeId);
+    closeEdgeEditor();
+  }, [activeGraphId, editingEdgeId, removeEdge, closeEdgeEditor]);
 
   if (!editingEdgeId || !edge) return null;
 
@@ -175,6 +182,54 @@ export function EdgePanel() {
               lineHeight: 1.4,
             }}>
               A short label displayed on the connection line. Keep it brief.
+            </p>
+          </div>
+        </div>
+
+        {/* Break Connection */}
+        <div className="script-panel__section">
+          <div className="script-panel__section-header">
+            <span>⚠️</span> DANGER ZONE
+          </div>
+          <div className="script-panel__section-content">
+            <button
+              type="button"
+              onClick={handleBreakConnection}
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                background: 'hsla(350, 75%, 60%, 0.1)',
+                border: '1px solid hsla(350, 75%, 60%, 0.3)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--accent-rose)',
+                fontFamily: 'var(--font-ui)',
+                fontSize: 'var(--text-sm)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 120ms ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = 'hsla(350, 75%, 60%, 0.2)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-rose)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = 'hsla(350, 75%, 60%, 0.1)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'hsla(350, 75%, 60%, 0.3)';
+              }}
+            >
+              🗑 Break Connection
+            </button>
+            <p style={{
+              fontSize: 'var(--text-xs)',
+              color: 'var(--text-dim)',
+              marginTop: '6px',
+              lineHeight: 1.4,
+            }}>
+              Permanently removes this connection between nodes.
             </p>
           </div>
         </div>
