@@ -7,6 +7,7 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import { StoryCanvas } from './components/canvas/StoryCanvas';
 import { ScriptPanel } from './components/panels/ScriptPanel';
+import { EdgePanel } from './components/panels/EdgePanel';
 import { ProjectManager } from './components/panels/ProjectManager';
 import { useStoryStore } from './store/useStoryStore';
 import { useUIStore } from './store/useUIStore';
@@ -41,20 +42,21 @@ function EditorView() {
   const showValidationBar = useUIStore((s) => s.showValidationBar);
   const setValidation = useUIStore((s) => s.setValidation);
   const editingNodeId = useUIStore((s) => s.editingNodeId);
-  const closeNodeEditor = useUIStore((s) => s.closeNodeEditor);
+  const editingEdgeId = useUIStore((s) => s.editingEdgeId);
+  const closeAllPanels = useUIStore((s) => s.closeAllPanels);
   const setView = useUIStore((s) => s.setView);
   const saveProjectToList = useUIStore((s) => s.saveProjectToList);
 
-  // Escape key closes the script panel
+  // Escape key closes any open panel
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && editingNodeId) {
-        closeNodeEditor();
+      if (e.key === 'Escape' && (editingNodeId || editingEdgeId)) {
+        closeAllPanels();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editingNodeId, closeNodeEditor]);
+  }, [editingNodeId, editingEdgeId, closeAllPanels]);
 
   const handleValidate = useCallback(() => {
     const result = validateProject(project);
@@ -135,6 +137,7 @@ function EditorView() {
       <div className="app-body">
         <StoryCanvas />
         {editingNodeId && <ScriptPanel />}
+        {editingEdgeId && <EdgePanel />}
       </div>
 
       {/* Validation Bar */}

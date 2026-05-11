@@ -1,20 +1,22 @@
 /**
  * StoryMapper — Story Canvas
  * 
- * React Flow canvas wrapper. Nodes only show headings on canvas.
- * Double-click a node to open the Script Panel for editing.
+ * React Flow canvas with custom nodes, edges, connection drop menu,
+ * and edge click handler for sidebar editing.
  */
 
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
   BackgroundVariant,
+  useReactFlow,
   type Connection,
   type Edge,
   type Node,
+  type OnConnectStartParams,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -23,6 +25,9 @@ import { useUIStore } from '../../store/useUIStore';
 import { ScriptEditorNode } from '../nodes/ScriptEditorNode';
 import { SubStoryNode } from '../nodes/SubStoryNode';
 import { StartNode, EndNode } from '../nodes/StartEndNode';
+import { BranchNode } from '../nodes/BranchNode';
+import { LabeledEdge } from '../edges/LabeledEdge';
+import { ConnectionDropMenu } from './ConnectionDropMenu';
 import type { NodeType } from '../../types/story';
 
 const nodeTypes = {
@@ -30,6 +35,11 @@ const nodeTypes = {
   'sub-story': SubStoryNode,
   'start': StartNode,
   'end': EndNode,
+  'branch': BranchNode,
+};
+
+const edgeTypes = {
+  'labeled': LabeledEdge,
 };
 
 export function StoryCanvas() {
@@ -46,12 +56,27 @@ export function StoryCanvas() {
   const collapseToSubStory = useStoryStore((s) => s.collapseToSubStory);
   const selectedNodeIds = useStoryStore((s) => s.selectedNodeIds);
 
+  const openEdgeEditor = useUIStore((s) => s.openEdgeEditor);
+
+  const { screenToFlowPosition } = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
+  // ── Track connection source for drop menu ──
+  const connectingFrom = useRef<{ nodeId: string; handleId: string } | null>(null);
+
+  // ── Drop menu state ──
+  const [dropMenu, setDropMenu] = useState<{
+    screenX: number;
+    screenY: number;
+    flowX: number;
+    flowY: number;
+    sourceNodeId: string;
+    sourceHandleId: string;
+  } | null>(null);
 
   const graph = project.graphs[activeGraphId];
   if (!graph) return <div>No graph loaded</div>;
 
-  // Check if a start node already exists
   const hasStartNode = useMemo(() =>
     graph.nodes.some(n => n.type === 'start'),
     [graph.nodes]
@@ -76,6 +101,8 @@ export function StoryCanvas() {
       sourceHandle: e.sourceHandle,
       target: e.target,
       targetHandle: e.targetHandle,
+      type: 'labeled',
+      data: e.data || {},
       animated: true,
       style: { strokeWidth: 2 },
     })),
@@ -111,18 +138,97 @@ export function StoryCanvas() {
       targetHandle: connection.targetHandle || 'in',
     };
     addEdge(activeGraphId, edge);
+    // Clear the ref since connection was successful
+    connectingFrom.current = null;
   }, [activeGraphId, addEdge]);
+
+  // ── Capture source info when connection starts ──
+  const handleConnectStart = useCallback((_event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
+    if (params.nodeId && params.handleId) {
+      connectingFrom.current = {
+        nodeId: params.nodeId,
+        handleId: params.handleId,
+      };
+    }
+  }, []);
+
+  // ── Connection dropped on empty space → show drop menu ──
+  const handleConnectEnd = useCallback((event: MouseEvent | TouchEvent) => {
+    const source = connectingFrom.current;
+    if (!source) return;
+
+    // Check if the drop was on the pane (empty space) vs on a node handle
+    const target = (event as MouseEvent).target as HTMLElement;
+    if (!target) return;
+
+    // If dropped on a handle or node, the onConnect callback handles it
+    const isOnHandle = target.closest('.react-flow__handle');
+    if (isOnHandle) {
+      connectingFrom.current = null;
+      return;
+    }
+
+    // Get mouse position
+    let clientX: number, clientY: number;
+    if ('changedTouches' in event) {
+      clientX = (event as TouchEvent).changedTouches[0].clientX;
+      clientY = (event as TouchEvent).changedTouches[0].clientY;
+    } else {
+      clientX = (event as MouseEvent).clientX;
+      clientY = (event as MouseEvent).clientY;
+    }
+
+    // Convert to flow coordinates for node placement
+    const flowPos = screenToFlowPosition({ x: clientX, y: clientY });
+
+    setDropMenu({
+      screenX: clientX,
+      screenY: clientY,
+      flowX: flowPos.x,
+      flowY: flowPos.y,
+      sourceNodeId: source.nodeId,
+      sourceHandleId: source.handleId,
+    });
+
+    connectingFrom.current = null;
+  }, [screenToFlowPosition]);
+
+  // ── Handle drop menu selection ──
+  const handleDropMenuSelect = useCallback((type: string) => {
+    if (!dropMenu) return;
+
+    // Create the new node at the drop position
+    const newNodeId = addNode(activeGraphId, type as NodeType, {
+      x: dropMenu.flowX,
+      y: dropMenu.flowY,
+    });
+
+    // Create an edge from source to the new node
+    const edge = {
+      id: `e-${dropMenu.sourceNodeId}-${newNodeId}-${Date.now()}`,
+      source: dropMenu.sourceNodeId,
+      sourceHandle: dropMenu.sourceHandleId,
+      target: newNodeId,
+      targetHandle: 'in',
+    };
+    addEdge(activeGraphId, edge);
+
+    setDropMenu(null);
+  }, [dropMenu, activeGraphId, addNode, addEdge]);
+
+  // ── Edge click → open edge panel ──
+  const handleEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
+    openEdgeEditor(edge.id);
+  }, [openEdgeEditor]);
 
   // Double-click canvas = add new scene node
   const handlePaneDoubleClick = useCallback((event: React.MouseEvent) => {
-    const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-    if (!bounds) return;
-    const position = {
-      x: event.clientX - bounds.left,
-      y: event.clientY - bounds.top,
-    };
+    const position = screenToFlowPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
     addNode(activeGraphId, 'script-editor', position);
-  }, [activeGraphId, addNode]);
+  }, [activeGraphId, addNode, screenToFlowPosition]);
 
   const breadcrumbs = useMemo(() =>
     graphStack.map((gId) => ({
@@ -143,7 +249,7 @@ export function StoryCanvas() {
   }, [activeGraphId, addNode]);
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
       {/* Breadcrumb */}
       {graphStack.length > 1 && (
         <div className="breadcrumb">
@@ -177,6 +283,9 @@ export function StoryCanvas() {
         <button className="btn btn--ghost" onClick={() => handleAddFromToolbar('script-editor')} title="Add Scene Node">
           🎬 Scene
         </button>
+        <button className="btn btn--ghost" onClick={() => handleAddFromToolbar('branch')} title="Add Branch/Decision Node">
+          🔀 Branch
+        </button>
         <button
           className="btn btn--ghost"
           onClick={() => handleAddFromToolbar('start')}
@@ -201,7 +310,7 @@ export function StoryCanvas() {
         </button>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-dim)' }}>
-          Double-click canvas to add scene · Double-click node to edit
+          Drag connector to empty space to create & connect · Click edge to edit
         </span>
       </div>
 
@@ -211,14 +320,19 @@ export function StoryCanvas() {
           nodes={rfNodes}
           edges={rfEdges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={handleConnect}
+          onConnectStart={handleConnectStart}
+          onConnectEnd={handleConnectEnd}
+          onEdgeClick={handleEdgeClick}
           onDoubleClick={handlePaneDoubleClick}
           fitView
           snapToGrid
           snapGrid={[16, 16]}
           defaultEdgeOptions={{
+            type: 'labeled',
             animated: true,
             style: { stroke: 'var(--text-dim)', strokeWidth: 2 },
           }}
@@ -243,6 +357,16 @@ export function StoryCanvas() {
           />
         </ReactFlow>
       </div>
+
+      {/* Connection Drop Menu */}
+      {dropMenu && (
+        <ConnectionDropMenu
+          x={dropMenu.screenX}
+          y={dropMenu.screenY}
+          onSelect={handleDropMenuSelect}
+          onClose={() => setDropMenu(null)}
+        />
+      )}
     </div>
   );
 }

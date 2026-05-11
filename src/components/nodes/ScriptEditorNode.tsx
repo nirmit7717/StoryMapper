@@ -1,12 +1,12 @@
 /**
  * StoryMapper — ScriptEditorNode (Canvas Version)
  * 
- * On the canvas, this node shows ONLY its heading, summary badges,
- * and port handles. The full script editor opens in a separate
- * side panel when the node is double-clicked.
+ * Scene node on canvas: shows heading, summary badges, and simple
+ * in/out handles. No branching logic — that's handled by BranchNode.
+ * Double-click or click ✎ to open the Script Panel for editing.
  */
 
-import { memo, useCallback, useState, useMemo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useStoryStore } from '../../store/useStoryStore';
 import { useUIStore } from '../../store/useUIStore';
@@ -22,7 +22,6 @@ export const ScriptEditorNode = memo(function ScriptEditorNode({ id, data, selec
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(data.title);
 
-  // Double-click opens the script editor panel
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     openNodeEditor(id);
@@ -33,26 +32,11 @@ export const ScriptEditorNode = memo(function ScriptEditorNode({ id, data, selec
     setIsEditingTitle(false);
   }, [activeGraphId, id, titleDraft, updateNodeData]);
 
-  // Port handles for React Flow
-  const portHandles = useMemo(() => data.outputPorts.map((port, index) => (
-    <Handle
-      key={port.id}
-      type="source"
-      position={Position.Right}
-      id={`port-${port.id}`}
-      style={{
-        top: `${((index + 1) / (data.outputPorts.length + 1)) * 100}%`,
-        background: 'var(--accent-teal)',
-      }}
-    />
-  )), [data.outputPorts]);
-
   const nodeClasses = [
     'story-node',
     selected ? 'story-node--selected' : '',
   ].filter(Boolean).join(' ');
 
-  // Color bar on the left
   const accentColor = data.color || 'var(--accent-blue)';
 
   return (
@@ -64,12 +48,9 @@ export const ScriptEditorNode = memo(function ScriptEditorNode({ id, data, selec
       {/* Input Handle */}
       <Handle type="target" position={Position.Left} id="in" />
 
-      {/* Header — always visible */}
+      {/* Header */}
       <div className="node-header">
-        <div
-          className="node-header__indicator"
-          style={{ background: accentColor }}
-        />
+        <div className="node-header__indicator" style={{ background: accentColor }} />
         <span className="node-header__icon">🎬</span>
         {isEditingTitle ? (
           <input
@@ -108,47 +89,22 @@ export const ScriptEditorNode = memo(function ScriptEditorNode({ id, data, selec
         </span>
       </div>
 
-      {/* Summary badges — always visible */}
+      {/* Summary badges */}
       <div className="node-compact">
         <div className="node-compact__summary">
-          {data.outputPorts.length > 0 && (
-            <span className="badge badge--blue">
-              {data.outputPorts.length} choice{data.outputPorts.length !== 1 ? 's' : ''}
-            </span>
-          )}
           {data.dialogue.length > 0 && (
             <span className="badge badge--purple">
               {data.dialogue.length} line{data.dialogue.length !== 1 ? 's' : ''}
             </span>
           )}
           {data.metadata.environment && (
-            <span className="badge">
-              🌍 {data.metadata.environment}
-            </span>
+            <span className="badge">🌍 {data.metadata.environment}</span>
           )}
         </div>
-        {/* Port labels preview */}
-        {data.outputPorts.length > 0 && (
-          <div className="node-compact__port-labels">
-            {data.outputPorts.map(port => (
-              <div key={port.id} className="node-compact__port-label">
-                <span className="logic-port__dot" style={{ width: 5, height: 5 }} />
-                <span>{port.label}</span>
-                {port.conditionFlag && (
-                  <span className="node-compact__port-cond">[{port.conditionFlag}]</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Output Port Handles */}
-      {data.outputPorts.length > 0 ? (
-        portHandles
-      ) : (
-        <Handle type="source" position={Position.Right} id="out" />
-      )}
+      {/* Single output handle — branching is done by BranchNode */}
+      <Handle type="source" position={Position.Right} id="out" />
     </div>
   );
 });

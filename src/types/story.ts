@@ -45,7 +45,7 @@ export interface Graph {
 
 // ─── Node Types ─────────────────────────────────────────────────
 
-export type NodeType = 'script-editor' | 'sub-story' | 'start' | 'end';
+export type NodeType = 'script-editor' | 'branch' | 'sub-story' | 'start' | 'end';
 
 export interface StoryNode {
   id: string;
@@ -125,6 +125,8 @@ export interface StoryEdge {
 
 export interface EdgeData {
   label?: string;
+  /** Description of flow between scenes */
+  description?: string;
   /** Whether this edge is the "default" path */
   isDefault?: boolean;
 }

@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import { produce } from 'immer';
 import type { Viewport } from '@xyflow/react';
 import type {
-  StoryProject, Graph, StoryNode, StoryEdge, NodeData,
+  StoryProject, Graph, StoryNode, StoryEdge, NodeData, EdgeData,
   LogicPort, DialogueLine, NodeType
 } from '../types/story';
 import { createDefaultNodeData, createDefaultLogicPort, createDefaultDialogueLine } from '../types/story';
@@ -44,6 +44,7 @@ interface StoryState {
   // ── Edge Actions ──
   addEdge: (graphId: string, edge: StoryEdge) => void;
   removeEdge: (graphId: string, edgeId: string) => void;
+  updateEdgeData: (graphId: string, edgeId: string, patch: Partial<EdgeData>) => void;
 
   // ── Logic Port Actions ──
   addLogicPort: (graphId: string, nodeId: string, label?: string) => void;
@@ -169,11 +170,24 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       if (type === 'start' && graph.nodes.some(n => n.type === 'start')) {
         return; // Already has a start node
       }
+      const titleMap: Record<string, string> = {
+        'start': 'Start', 'end': 'End', 'branch': 'Decision',
+        'script-editor': 'New Scene', 'sub-story': 'Sub-Story',
+      };
       const node: StoryNode = {
         id: nodeId,
         type,
         position,
-        data: createDefaultNodeData(type === 'start' ? 'Start' : type === 'end' ? 'End' : 'New Scene'),
+        data: {
+          ...createDefaultNodeData(titleMap[type] || 'New Scene'),
+          // Branch nodes start with 2 default choices
+          ...(type === 'branch' ? {
+            outputPorts: [
+              createDefaultLogicPort('Option A'),
+              createDefaultLogicPort('Option B'),
+            ],
+          } : {}),
+        },
       };
       graph.nodes.push(node);
       state.isDirty = true;
@@ -226,6 +240,16 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     const graph = state.project.graphs[graphId];
     if (!graph) return;
     graph.edges = graph.edges.filter(e => e.id !== edgeId);
+    state.isDirty = true;
+  })),
+
+  updateEdgeData: (graphId, edgeId, patch) => set(produce((state: StoryState) => {
+    const graph = state.project.graphs[graphId];
+    if (!graph) return;
+    const edge = graph.edges.find(e => e.id === edgeId);
+    if (!edge) return;
+    if (!edge.data) edge.data = {};
+    Object.assign(edge.data, patch);
     state.isDirty = true;
   })),
 

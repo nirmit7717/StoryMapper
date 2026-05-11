@@ -2,7 +2,7 @@
  * StoryMapper — UI Store
  * 
  * Manages transient UI state: view routing, active panels, 
- * node editor panel, validation display, project list.
+ * node/edge editor panels, validation display, project list.
  */
 
 import { create } from 'zustand';
@@ -20,6 +20,8 @@ interface UIState {
   currentView: 'project-manager' | 'editor';
   /** The node currently open in the script editor panel (null = panel closed) */
   editingNodeId: string | null;
+  /** The edge currently open in the edge editor panel (null = panel closed) */
+  editingEdgeId: string | null;
   /** Whether the validation bar is visible */
   showValidationBar: boolean;
   /** Current validation status */
@@ -36,6 +38,13 @@ interface UIState {
   // ── Node Editor Panel ──
   openNodeEditor: (nodeId: string) => void;
   closeNodeEditor: () => void;
+
+  // ── Edge Editor Panel ──
+  openEdgeEditor: (edgeId: string) => void;
+  closeEdgeEditor: () => void;
+
+  // ── Close any panel ──
+  closeAllPanels: () => void;
 
   // ── Validation ──
   setValidation: (status: 'ok' | 'warn' | 'error' | 'idle', message: string) => void;
@@ -68,16 +77,22 @@ function persistProjectList(list: ProjectListItem[]) {
 export const useUIStore = create<UIState>((set, get) => ({
   currentView: 'project-manager',
   editingNodeId: null,
+  editingEdgeId: null,
   showValidationBar: true,
   validationStatus: 'idle',
   validationMessage: 'Ready',
   contextMenu: null,
   projectList: getStoredProjectList(),
 
-  setView: (view) => set({ currentView: view, editingNodeId: null }),
+  setView: (view) => set({ currentView: view, editingNodeId: null, editingEdgeId: null }),
 
-  openNodeEditor: (nodeId) => set({ editingNodeId: nodeId }),
+  openNodeEditor: (nodeId) => set({ editingNodeId: nodeId, editingEdgeId: null }),
   closeNodeEditor: () => set({ editingNodeId: null }),
+
+  openEdgeEditor: (edgeId) => set({ editingEdgeId: edgeId, editingNodeId: null }),
+  closeEdgeEditor: () => set({ editingEdgeId: null }),
+
+  closeAllPanels: () => set({ editingNodeId: null, editingEdgeId: null }),
 
   setValidation: (status, message) => set({ validationStatus: status, validationMessage: message }),
 
@@ -88,7 +103,7 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   saveProjectToList: (item) => {
     const list = get().projectList.filter(p => p.id !== item.id);
-    list.unshift(item); // Most recent first
+    list.unshift(item);
     persistProjectList(list);
     set({ projectList: list });
   },
