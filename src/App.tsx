@@ -36,6 +36,7 @@ export default function App() {
 function EditorView() {
   const project = useStoryStore((s) => s.project);
   const isDirty = useStoryStore((s) => s.isDirty);
+  const updateProjectMeta = useStoryStore((s) => s.updateProjectMeta);
 
   const validationStatus = useUIStore((s) => s.validationStatus);
   const validationMessage = useUIStore((s) => s.validationMessage);
@@ -117,9 +118,29 @@ function EditorView() {
           </button>
           <span className="app-header__logo">🗺️</span>
           <span>StoryMapper</span>
-          <span style={{ color: 'var(--text-dim)', fontSize: 'var(--text-xs)', fontWeight: 400 }}>
-            — {project.title}
-            {isDirty && <span style={{ color: 'var(--accent-amber)', marginLeft: '4px' }}>●</span>}
+          <span style={{ color: 'var(--text-dim)', fontSize: 'var(--text-xs)', fontWeight: 400, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            —
+            <input
+              style={{
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'var(--text-primary)',
+                fontFamily: 'inherit',
+                fontSize: 'inherit',
+                fontWeight: 600,
+                width: `${Math.max(10, project.title.length + 2)}ch`,
+                borderBottom: '1px solid transparent',
+                transition: 'border-color var(--transition-fast)',
+              }}
+              value={project.title}
+              onChange={(e) => updateProjectMeta(e.target.value)}
+              onFocus={(e) => { e.target.style.borderBottomColor = 'var(--accent-blue)'; }}
+              onBlur={(e) => { e.target.style.borderBottomColor = 'transparent'; }}
+              title="Edit project name"
+              placeholder="Project Name..."
+            />
+            {isDirty && <span style={{ color: 'var(--accent-amber)' }}>●</span>}
           </span>
         </div>
         <div className="app-header__actions">
