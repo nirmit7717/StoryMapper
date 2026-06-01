@@ -106,10 +106,8 @@ export interface LogicPort {
   id: string;
   /** Display label, e.g. "Show evidence" */
   label: string;
-  /** Condition flag name, e.g. "trust" */
-  conditionFlag: string;
-  /** Condition expression, e.g. "> 50" */
-  conditionValue: string;
+  /** Short description of the choice */
+  description: string;
 }
 
 // ─── Edges ──────────────────────────────────────────────────────
@@ -162,7 +160,6 @@ export function createDefaultLogicPort(label: string = 'Choice'): LogicPort {
   return {
     id: crypto.randomUUID(),
     label,
-    conditionFlag: '',
-    conditionValue: '',
+    description: '',
   };
 }

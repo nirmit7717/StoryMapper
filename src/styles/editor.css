@@ -6,7 +6,7 @@
   color: var(--text-primary);
   line-height: 1.7;
   outline: none;
-  min-height: 60px;
+  min-height: 200px;
   padding: var(--space-2) 0;
 }
 
@@ -63,7 +63,7 @@
   margin: var(--space-3) 0;
 }
 
-/* Editor Toolbar */
+/* ── Editor Toolbar (sticky at top of editor section) ── */
 .editor-toolbar {
   display: flex;
   align-items: center;
@@ -72,6 +72,15 @@
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--node-border);
   flex-wrap: wrap;
+}
+
+/* Sticky modifier: stays pinned at top of the scroll container */
+.editor-toolbar--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
 .editor-toolbar__btn {
@@ -121,4 +130,37 @@
 
 .editor-toolbar__select:focus {
   border-color: var(--accent-blue);
+}
+
+/* ── Script panel editor section: scroll wrapper ── */
+.script-panel__section--editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.script-panel__section-content--editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The .node-script wrapper inside the editor */
+.script-panel__section-content--editor .node-script {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The scrollable area for the actual text content */
+.script-panel__editor-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-3);
+  min-height: 200px;
 }

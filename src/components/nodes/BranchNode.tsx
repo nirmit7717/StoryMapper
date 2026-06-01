@@ -106,9 +106,6 @@ export const BranchNode = memo(function BranchNode({ id, data, selected }: Branc
           <div key={port.id} className="branch-node__choice">
             <span className="branch-node__choice-dot" />
             <span className="branch-node__choice-label">{port.label}</span>
-            {port.conditionFlag && (
-              <span className="branch-node__choice-cond">[{port.conditionFlag}]</span>
-            )}
           </div>
         ))}
         <button

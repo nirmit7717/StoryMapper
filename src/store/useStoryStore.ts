@@ -189,6 +189,17 @@ export const useStoryStore = create<StoryState>((set, get) => ({
           } : {}),
         },
       };
+      // Enforce unique title on creation
+      const existingTitles = new Set(
+        graph.nodes.filter(n => n.type === 'script-editor' || n.type === 'branch' || n.type === 'sub-story').map(n => n.data.title)
+      );
+      if (existingTitles.has(node.data.title)) {
+        let counter = 2;
+        while (existingTitles.has(`${node.data.title} (${counter})`)) {
+          counter++;
+        }
+        node.data.title = `${node.data.title} (${counter})`;
+      }
       graph.nodes.push(node);
       state.isDirty = true;
       state.project.updatedAt = new Date().toISOString();
@@ -210,6 +221,22 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     if (!graph) return;
     const node = graph.nodes.find(n => n.id === nodeId);
     if (!node) return;
+
+    // Enforce unique titles for scene nodes within the same graph
+    if (patch.title !== undefined && (node.type === 'script-editor' || node.type === 'branch' || node.type === 'sub-story')) {
+      let candidateTitle = patch.title;
+      const otherNodes = graph.nodes.filter(n => n.id !== nodeId && (n.type === 'script-editor' || n.type === 'branch' || n.type === 'sub-story'));
+      const existingTitles = new Set(otherNodes.map(n => n.data.title));
+      if (existingTitles.has(candidateTitle)) {
+        let counter = 2;
+        while (existingTitles.has(`${patch.title} (${counter})`)) {
+          counter++;
+        }
+        candidateTitle = `${patch.title} (${counter})`;
+      }
+      patch = { ...patch, title: candidateTitle };
+    }
+
     Object.assign(node.data, patch);
     state.isDirty = true;
     state.project.updatedAt = new Date().toISOString();
